@@ -14,6 +14,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 from feedgen.feed import FeedGenerator
+from lxmlclean import clean
 
 from collections import deque
 from datetime import datetime
@@ -32,17 +33,17 @@ class Entries:
 
     def __writeEntries(self):
         try:
+            tmpEntry = json.dumps(list(self.__entries))
             with open(self.__entryFile, 'w+') as f:
-                try:
-                    f.write(json.dumps(list(self.__entries)))
-                except TypeError as e:
-                    print('%s: failed to dump entries; entries lost' % e)
-                    exit(1)
+                f.write(tmpEntry)
         except IOError as e:
             print('%s: failed to save entries' % e)
             exit(1)
+        except TypeError as e:
+            print('%s: failed to deserialize some entry property' % e)
+            exit(1)
 
-    def __writeAtomFeed(self):
+    def __writeAtomFeed(self, uid, title, content, date):
         try:
             tmpFeed = FeedGenerator()
             tmpFeed.id(self.__config.feedUrl)
@@ -51,12 +52,21 @@ class Entries:
                 href=self.__config.feedUrl + '/' + self.__config.secret,
                 rel='self'
             )
+            # add ones in the feed
             for entry in self.__entries:
                 tmpEntry = tmpFeed.add_entry()
                 tmpEntry.id(entry['id'] or str(uuid4()))
                 tmpEntry.title(entry['title'] or 'No title')
                 tmpEntry.content(entry['content'] or 'No content')
                 tmpEntry.updated(entry['date'] or datetime.utcnow())
+            # add new ones to see if lxml will cry about them.
+            # this may throw ValueError
+            tmpEntry = tmpFeed.add_entry()
+            tmpEntry.id(uid)
+            tmpEntry.title(title)
+            tmpEntry.content(content)
+            tmpEntry.updated(date)
+            # write file
             tmpFeed.atom_file(self.__feedFile)
         except IOError as e:
             print('%s: failed to write atom file' % e)
@@ -99,8 +109,14 @@ class Entries:
          title,
          content,
     ):
+        title = clean(title)
+        content = clean(content)
         date = datetime.utcnow().isoformat(timespec='seconds')+'Z'
         uid = str(uuid4())
+        # will throw if sensitive xml parser doesn't like some
+        # random non utf8 or ascii control code...
+        self.__writeAtomFeed(uid, title, content, date)
+        # save entry since it's lxml approved(tm)
         self.__entries.append({
             'id': uid,
             'title': title,
@@ -108,4 +124,3 @@ class Entries:
             'date': date
         })
         self.__writeEntries()
-        self.__writeAtomFeed()

@@ -27,8 +27,8 @@ app = Flask(
 )
 
 
-@app.route('/', defaults={'secret': ''})
-@app.route('/<secret>')
+@app.route('/', defaults={'secret': ''}, methods=['GET', 'POST'])
+@app.route('/<secret>', methods=['GET', 'POST'])
 def getRootFeed(secret):
     if secret != config.secret:
         return app.response_class(
