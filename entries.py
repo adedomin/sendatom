@@ -93,8 +93,6 @@ class Entries:
                     raise ValueError(
                         'entry file %s is not a list' % self.__entryFile
                     )
-            # ensure consistent atom feed file
-            self.__writeAtomFeed()
         except IOError:
             try:
                 with open(self.__entryFile, 'w+') as f:

@@ -27,20 +27,17 @@ app = Flask(
 )
 
 
-@app.route('/', defaults={'secret': ''}, methods=['GET', 'POST'])
-@app.route('/<secret>', methods=['GET', 'POST'])
-def getRootFeed(secret):
+@app.route('/add', defaults={'secret': ''}, methods=['GET', 'POST'])
+@app.route('/<secret>/add', methods=['GET', 'POST'])
+def addToRootFeed(secret):
     if secret != config.secret:
         return app.response_class(
             response='{ "status": "error", "msg": "wrong secret url" }',
             status=403,
             mimetype='application/json',
         )
-    if request.method == 'GET' and (
-       request.args.get('title', '') == '' or
-       request.args.get('content', '') == ''):
-        return app.send_static_file('root.atom')
-    elif request.method == 'GET':
+
+    if request.method == 'GET':
         entries.addEntry(
             title=request.args.get('title', 'No title'),
             content=request.args.get('content', 'No Content'),
@@ -50,7 +47,7 @@ def getRootFeed(secret):
             status=200,
             mimetype='application/json',
         )
-    elif request.method == 'POST':
+    else:
         entries.addEntry(
             title=request.form.get('title', 'No title'),
             content=request.form.get('content', 'No Content'),
@@ -60,12 +57,19 @@ def getRootFeed(secret):
             status=200,
             mimetype='application/json',
         )
-    else:
+
+
+@app.route('/', defaults={'secret': ''}, methods=['GET'])
+@app.route('/<secret>', methods=['GET'])
+def getRootFeed(secret):
+    if secret != config.secret:
         return app.response_class(
-            response='{ "status": "error", "msg": "invalid method" }',
-            status=400,
+            response='{ "status": "error", "msg": "wrong secret url" }',
+            status=403,
             mimetype='application/json',
         )
+
+    return app.send_static_file('root.atom')
 
 
 if __name__ == '__main__':
