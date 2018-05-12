@@ -18,7 +18,7 @@ from lxmlclean import clean
 
 from collections import deque
 from datetime import datetime
-from sys import exit
+from sys import exit, stderr
 from uuid import uuid4
 import json
 
@@ -37,10 +37,12 @@ class Entries:
             with open(self.__entryFile, 'w+') as f:
                 f.write(tmpEntry)
         except IOError as e:
-            print('%s: failed to save entries' % e)
+            print('%s: failed to save entries' % e,
+                  file=stderr)
             exit(1)
         except TypeError as e:
-            print('%s: failed to deserialize some entry property' % e)
+            print('%s: failed to deserialize some entry property' % e,
+                  file=stderr)
             exit(1)
 
     def __writeAtomFeed(self, uid, title, content, date):
@@ -48,10 +50,9 @@ class Entries:
             tmpFeed = FeedGenerator()
             tmpFeed.id(self.__config.feedUrl)
             tmpFeed.title(self.__config.feedTitle)
-            tmpFeed.link(
-                href=self.__config.feedUrl + '/' + self.__config.secret,
-                rel='self'
-            )
+            tmpFeed.link(href=self.__config.feedUrl + '/' +
+                         self.__config.secret,
+                         rel='self')
             # add ones in the feed
             for entry in self.__entries:
                 tmpEntry = tmpFeed.add_entry()
@@ -69,7 +70,8 @@ class Entries:
             # write file
             tmpFeed.atom_file(self.__feedFile)
         except IOError as e:
-            print('%s: failed to write atom file' % e)
+            print('%s: failed to write atom file' % e,
+                  file=stderr)
             exit(1)
 
     def __init__(self, config):
@@ -85,28 +87,24 @@ class Entries:
                 except:
                     tmpEntries = []
                 if isinstance(tmpEntries, list):
-                    self.__entries = deque(
-                        tmpEntries,
-                        maxlen=config.maxEntries
-                    )
+                    self.__entries = deque(tmpEntries,
+                                           maxlen=config.maxEntries)
                 else:
-                    raise ValueError(
-                        'entry file %s is not a list' % self.__entryFile
-                    )
+                    raise ValueError('entry file %s is not a list' %
+                                     self.__entryFile)
         except IOError:
             try:
                 with open(self.__entryFile, 'w+') as f:
                     f.write('[]')
                     self.__entries = deque([], maxlen=config.maxEntries)
             except IOError as e:
-                print('%s: make sure file is writable' % e)
+                print('%s: make sure file is writable' % e,
+                      file=stderr)
                 exit(1)
 
-    def addEntry(
-         self,
-         title,
-         content,
-    ):
+    def addEntry(self,
+                 title,
+                 content):
         title = clean(title)
         content = clean(content)
         date = datetime.utcnow().isoformat(timespec='seconds')+'Z'
@@ -119,6 +117,6 @@ class Entries:
             'id': uid,
             'title': title,
             'content': content,
-            'date': date
+            'date': date,
         })
         self.__writeEntries()

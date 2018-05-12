@@ -1,0 +1,141 @@
+#!/usr/bin/python3
+# Copyright (c) 2018, Anthony DeDominic <adedomin@gmail.com>
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+from os import environ, path
+from sys import stderr, exit
+from urllib import request
+from urllib.parse import quote
+from argparse import ArgumentParser
+import re
+
+
+commentRe = re.compile('^\s*#')
+blankRe = re.compile('^\s*$')
+
+config_files = [
+    environ.get(
+        'XDG_CONFIG_HOME',
+        path.expanduser('~/.config')
+    ) + '/sendatom-client.conf',
+    '/etc/sendatom-client.conf',
+    '/var/lib/sendatom/sendatom-client.conf',
+]
+
+servconf_files = [
+    environ.get(
+        'XDG_CONFIG_HOME',
+        path.expanduser('~/.config')
+    ) + '/sendatom.conf',
+    '/etc/sendatom.conf',
+    '/var/lib/sendatom/sendatom.conf',
+]
+
+aparse = ArgumentParser()
+aparse.add_argument('title',
+                    help='feed title or config option')
+aparse.add_argument('content',
+                    help='feed content or config value')
+args = aparse.parse_args()
+
+server = ''
+interface = ''
+port = ''
+secret_file = '/var/lib/sendatom/secret'
+secret = ''
+
+for file in servconf_files:
+    try:
+        with open(file, 'r') as f:
+            for line in f:
+                if not commentRe.search(line) \
+                        and not blankRe.search(line):
+                    conf, value = line.split('=', maxsplit=1)
+                    conf = conf.strip()
+                    value = value.strip()
+                    if conf == 'secret':
+                        secret_file = value
+                    elif conf == 'interface':
+                        interface = value
+                    elif conf == 'port':
+                        port = value
+            break
+    except IOError:
+        pass
+
+if interface != '' and port != '':
+    # ipv6 addr
+    if interface.find(':') != -1:
+        interface = '[%s]' % interface
+    server = 'http://%s:%s' % (interface, port)
+
+try:
+    with open(secret_file, 'r') as f:
+        secret = f.read().strip()
+except IOError:
+    pass
+
+for file in config_files:
+    try:
+        with open(file, 'r') as f:
+            for line in f:
+                if not commentRe.search(line) \
+                        and not blankRe.search(line):
+                    conf, value = line.split('=', maxsplit=1)
+                    conf = conf.strip()
+                    value = value.strip()
+                    if conf == 'secret':
+                        secret = value
+                    elif conf == 'server':
+                        server = value
+            break
+    except IOError:
+        pass
+
+if server == '':
+    print('Error: server is not defined',
+          file=stderr)
+    print('       create a config at %s with:' % config_files[0],
+          file=stderr)
+    print('         server = https://server',
+          file=stderr)
+    print('         secret = secretKeyOrBlank',
+          file=stderr)
+    exit(1)
+
+if secret != '':
+    secret = '/' + secret
+server = server + '%s/add' % secret
+
+req = request.Request(server,
+                      data=bytes("title=%s&content=%s" %
+                                 (quote(args.title), quote(args.content)),
+                                 'utf-8'),
+                      headers={
+                          'Content-Type': 'application/x-www-form-urlencoded',
+                      },
+                      method='POST')
+
+try:
+    with request.urlopen(req) as r:
+        pass
+except:
+    print('Error: failed to send',
+          file=stderr)
+    print('       check your secret and server are correct in',
+          file=stderr)
+    print('       %s' %
+          config_files[0],
+          file=stderr)
+    exit(1)
