@@ -43,16 +43,35 @@ servconf_files = [
 ]
 
 aparse = ArgumentParser()
+aparse.add_argument('-c', '--config',
+                    dest='config_file',
+                    help='configuration file defining server and secret',
+                    required=False,
+                    default='')
+aparse.add_argument('-s', '--secret-file',
+                    dest='secret_file',
+                    help='location of the secret file with the secret value',
+                    required=False,
+                    default='')
+aparse.add_argument('-u', '--url',
+                    dest='server',
+                    help='the http url to your feed server',
+                    required=False,
+                    default='')
 aparse.add_argument('title',
                     help='feed title or config option')
 aparse.add_argument('content',
                     help='feed content or config value')
+aparse.add_argument('feed',
+                    help='The feed to attach this feed entry to',
+                    nargs='?',
+                    default='root')
 args = aparse.parse_args()
 
-server = ''
+server = args.server
 interface = ''
 port = ''
-secret_file = '/var/lib/sendatom/secret'
+secret_file = args.secret_file
 secret = ''
 
 for file in servconf_files:
@@ -64,7 +83,7 @@ for file in servconf_files:
                     conf, value = line.split('=', maxsplit=1)
                     conf = conf.strip()
                     value = value.strip()
-                    if conf == 'secret':
+                    if conf == 'secret' and secret_file == '':
                         secret_file = value
                     elif conf == 'interface':
                         interface = value
@@ -74,7 +93,7 @@ for file in servconf_files:
     except IOError:
         pass
 
-if interface != '' and port != '':
+if interface != '' and port != '' and server == '':
     # ipv6 addr
     if interface.find(':') != -1:
         interface = '[%s]' % interface
@@ -85,6 +104,9 @@ try:
         secret = f.read().strip()
 except IOError:
     pass
+
+if args.config_file != '':
+    config_files = [ args.config_file ]
 
 for file in config_files:
     try:
@@ -101,7 +123,10 @@ for file in config_files:
                         server = value
             break
     except IOError:
-        pass
+        if args.config_file:
+            print('Error: could not read config %s' % args.config_file,
+                  file=stderr)
+            exit(1)
 
 if server == '':
     print('Error: server is not defined',
@@ -116,7 +141,7 @@ if server == '':
 
 if secret != '':
     secret = '/' + secret
-server = server + '%s/add' % secret
+server = f'{server}/{args.feed}{secret}/add'
 
 req = request.Request(server,
                       data=bytes("title=%s&content=%s" %
