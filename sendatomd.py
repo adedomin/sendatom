@@ -19,7 +19,7 @@ from flask import Flask, request
 
 
 config = Config()
-entries = Entries(config)
+entries = { 'root': Entries('root', config) }
 app = Flask(
     __name__,
     static_url_path='',
@@ -27,9 +27,10 @@ app = Flask(
 )
 
 
-@app.route('/add', defaults={'secret': ''}, methods=['GET', 'POST'])
-@app.route('/<secret>/add', methods=['GET', 'POST'])
-def addToRootFeed(secret):
+@app.route('/add', defaults={'feed': 'root', 'secret': ''}, methods=['GET', 'POST'])
+@app.route('/<secret>/add', defaults={'feed': 'root'}, methods=['GET', 'POST'])
+@app.route('/<feed>/<secret>/add', methods=['GET', 'POST'])
+def addToRootFeed(feed, secret):
     if secret != config.secret:
         return app.response_class(
             response='{ "status": "error", "msg": "wrong secret url" }',
@@ -37,8 +38,13 @@ def addToRootFeed(secret):
             mimetype='application/json',
         )
 
+    entry = entries.get(feed)
+    if entry == None:
+        entries[feed] = Entries(feed, config)
+        entry = entries.get(feed)
+
     if request.method == 'GET':
-        entries.addEntry(
+        entry.addEntry(
             title=request.args.get('title', 'No title'),
             content=request.args.get('content', 'No Content'),
         )
@@ -48,7 +54,7 @@ def addToRootFeed(secret):
             mimetype='application/json',
         )
     else:
-        entries.addEntry(
+        entry.addEntry(
             title=request.form.get('title', 'No title'),
             content=request.form.get('content', 'No Content'),
         )
@@ -59,9 +65,10 @@ def addToRootFeed(secret):
         )
 
 
-@app.route('/', defaults={'secret': ''}, methods=['GET'])
-@app.route('/<secret>', methods=['GET'])
-def getRootFeed(secret):
+@app.route('/', defaults={'feed': 'root', 'secret': ''}, methods=['GET'])
+@app.route('/<secret>', defaults={'feed': 'root'}, methods=['GET'])
+@app.route('/<feed>/<secret>', methods=['GET'])
+def getRootFeed(feed, secret):
     if secret != config.secret:
         return app.response_class(
             response='{ "status": "error", "msg": "wrong secret url" }',
@@ -69,7 +76,7 @@ def getRootFeed(secret):
             mimetype='application/json',
         )
 
-    return app.send_static_file('root.atom')
+    return app.send_static_file(f'{feed}.atom')
 
 
 if __name__ == '__main__':

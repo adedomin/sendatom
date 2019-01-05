@@ -74,10 +74,10 @@ class Entries:
                   file=stderr)
             exit(1)
 
-    def __init__(self, config):
+    def __init__(self, feedname, config):
         self.__config = config
-        self.__feedFile = config.feeds + '/root.atom'
-        self.__entryFile = config.entries + '/root.json'
+        self.__feedFile = f'{config.feeds}/{feedname}.atom'
+        self.__entryFile = f'{config.entries}/{feedname}.json'
 
         # load entriess
         try:
