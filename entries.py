@@ -132,5 +132,10 @@ class Entries:
     def getContentById(self, contentId):
         for entry in self.__entries:
             if entry['id'] == contentId:
-                return entry['content']
+                return f'''\
+Title: {entry['title']}
+Date:  {entry['date']}
+
+{entry['content']}
+'''
         return None
