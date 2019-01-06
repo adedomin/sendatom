@@ -27,6 +27,7 @@ class Entries:
     '''Class that holds feed/entries'''
 
     __config = None
+    __feedName = 'root'
     __feedFile = ''
     __entryFile = ''
     __entries = None
@@ -51,6 +52,7 @@ class Entries:
             tmpFeed.id(self.__config.feedUrl)
             tmpFeed.title(self.__config.feedTitle)
             tmpFeed.link(href=self.__config.feedUrl + '/' +
+                         self.__feedName + '/' +
                          self.__config.secret,
                          rel='self')
             # add ones in the feed
@@ -59,6 +61,11 @@ class Entries:
                 tmpEntry.id(entry['id'] or str(uuid4()))
                 tmpEntry.title(entry['title'] or 'No title')
                 tmpEntry.content(entry['content'] or 'No content')
+                tmpEntry.link(href=self.__config.feedUrl + '/' +
+                              self.__feedName + '/' +
+                              self.__config.secret + '/' +
+                              'get/' +
+                              entry["id"])
                 tmpEntry.updated(entry['date'] or datetime.utcnow())
             # add new ones to see if lxml will cry about them.
             # this may throw ValueError
@@ -76,6 +83,7 @@ class Entries:
 
     def __init__(self, feedname, config):
         self.__config = config
+        self.__feedName = feedname
         self.__feedFile = f'{config.feeds}/{feedname}.atom'
         self.__entryFile = f'{config.entries}/{feedname}.json'
 
@@ -84,7 +92,7 @@ class Entries:
             with open(self.__entryFile, 'r') as f:
                 try:
                     tmpEntries = json.loads(f.read())
-                except:
+                except Exception:
                     tmpEntries = []
                 if isinstance(tmpEntries, list):
                     self.__entries = deque(tmpEntries,
@@ -120,3 +128,9 @@ class Entries:
             'date': date,
         })
         self.__writeEntries()
+
+    def getContentById(self, contentId):
+        for entry in self.__entries:
+            if entry['id'] == contentId:
+                return entry['content']
+        return None
