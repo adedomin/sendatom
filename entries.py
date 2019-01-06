@@ -61,12 +61,12 @@ class Entries:
                 tmpEntry.id(entry['id'] or str(uuid4()))
                 tmpEntry.title(entry['title'] or 'No title')
                 tmpEntry.content(entry['content'] or 'No content')
+                tmpEntry.updated(entry['date'] or datetime.utcnow())
                 tmpEntry.link(href=self.__config.feedUrl + '/' +
                               self.__feedName + '/' +
                               self.__config.secret + '/' +
                               'get/' +
                               entry["id"])
-                tmpEntry.updated(entry['date'] or datetime.utcnow())
             # add new ones to see if lxml will cry about them.
             # this may throw ValueError
             tmpEntry = tmpFeed.add_entry()

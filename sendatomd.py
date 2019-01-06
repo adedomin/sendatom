@@ -104,4 +104,4 @@ def getFeedContent(feed='root', secret='', contentId='no-content'):
 
 
 if __name__ == '__main__':
-    run(host=config.interface, port=config.port, debug=True)
+    run(host=config.interface, port=config.port)
