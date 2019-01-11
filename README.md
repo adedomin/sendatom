@@ -35,7 +35,10 @@ Dependencies
 
 Pipfile includes a list of python 3 modules you need:
 
-  * feedgen
-  * flask
+  * bottle
+
+You can either download bottle using pip or your package manager or simply
+`wget https://github.com/bottlepy/bottle/raw/master/bottle.py`
+in the root of the repository.
 
 Note: sendatom depends on python 3.x
