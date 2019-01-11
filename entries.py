@@ -13,7 +13,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-from feedgen.feed import FeedGenerator
+from atom import createAtomFeed
 from lxmlclean import clean
 
 from collections import deque
@@ -29,6 +29,7 @@ class Entries:
     __config = None
     __feedName = 'root'
     __feedFile = ''
+    __feedLink = ''
     __entryFile = ''
     __entries = None
 
@@ -46,38 +47,16 @@ class Entries:
                   file=stderr)
             exit(1)
 
-    def __writeAtomFeed(self, uid, title, content, date):
+    def __writeAtomFeed(self):
         try:
-            tmpFeed = FeedGenerator()
-            tmpFeed.id(self.__config.feedUrl)
-            tmpFeed.title(self.__config.feedTitle)
-            tmpFeed.link(href=self.__config.feedUrl + '/' +
-                         self.__feedName + '/' +
-                         self.__config.secret,
-                         rel='self')
-            # add ones in the feed
-            for entry in self.__entries:
-                tmpEntry = tmpFeed.add_entry()
-                tmpEntry.id(entry['id'] or str(uuid4()))
-                tmpEntry.title(entry['title'] or 'No title')
-                tmpEntry.content(entry['content'] or 'No content')
-                tmpEntry.updated(entry['date'] or datetime.utcnow())
-                tmpEntry.link(href=self.__config.feedUrl + '/' +
-                              self.__feedName + '/' +
-                              self.__config.secret + '/' +
-                              'get/' +
-                              entry["id"])
-            # add new ones to see if lxml will cry about them.
-            # this may throw ValueError
-            tmpEntry = tmpFeed.add_entry()
-            tmpEntry.id(uid)
-            tmpEntry.title(title)
-            tmpEntry.content(content)
-            tmpEntry.updated(date)
-            # write file
-            tmpFeed.atom_file(self.__feedFile)
+            tmpFeed = createAtomFeed(self.__feedLink,
+                                     self.__feedName,
+                                     self.__feedLink,
+                                     self.__entries)
+            with open(self.__feedFile, 'w+') as f:
+                f.write(tmpFeed)
         except IOError as e:
-            print('%s: failed to write atom file' % e,
+            print(f'{e}: failed to save feed file',
                   file=stderr)
             exit(1)
 
@@ -85,6 +64,10 @@ class Entries:
         self.__config = config
         self.__feedName = feedname
         self.__feedFile = f'{config.feeds}/{feedname}.atom'
+        if config.secret != '':
+            self.__feedLink = f'{config.feedUrl}/{feedname}/{config.secret}'
+        else:
+            self.__feedLink = f'{config.feedUrl}/{feedname}'
         self.__entryFile = f'{config.entries}/{feedname}.json'
 
         # load entriess
@@ -98,17 +81,21 @@ class Entries:
                     self.__entries = deque(tmpEntries,
                                            maxlen=config.maxEntries)
                 else:
-                    raise ValueError('entry file %s is not a list' %
-                                     self.__entryFile)
+                    print(f'entry file {self.__entryFile} is not a list',
+                          file=stderr)
+                    exit(1)
         except IOError:
             try:
                 with open(self.__entryFile, 'w+') as f:
                     f.write('[]')
                     self.__entries = deque([], maxlen=config.maxEntries)
             except IOError as e:
-                print('%s: make sure file is writable' % e,
+                print(f'{e}: make sure file is writable',
                       file=stderr)
                 exit(1)
+
+        # refresh feed file just in case
+        self.__writeAtomFeed()
 
     def addEntry(self,
                  title,
@@ -117,17 +104,14 @@ class Entries:
         content = clean(content)
         date = datetime.utcnow().isoformat(timespec='seconds')+'Z'
         uid = str(uuid4())
-        # will throw if sensitive xml parser doesn't like some
-        # random non utf8 or ascii control code...
-        self.__writeAtomFeed(uid, title, content, date)
-        # save entry since it's lxml approved(tm)
-        self.__entries.append({
+        self.__entries.appendleft({
             'id': uid,
             'title': title,
             'content': content,
             'date': date,
         })
         self.__writeEntries()
+        self.__writeAtomFeed()
 
     def getContentById(self, contentId):
         for entry in self.__entries:

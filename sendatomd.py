@@ -82,6 +82,8 @@ def getRootFeed(feed='root', secret=''):
         response.status = 403
         return {'status': 'error', 'msg': 'wrong secret url'}
 
+    # generate the feed's content if not exist
+    getFeed(feed)
     return static_file(f'{feed}.atom', root=config.feeds)
 
 
