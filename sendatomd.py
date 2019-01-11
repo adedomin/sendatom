@@ -19,7 +19,7 @@ from bottle import get, post, error, request, response, static_file, run
 
 
 config = Config()
-entries = {'root': Entries('root', config)}
+entries = {}
 
 
 def getFeed(feedName):
