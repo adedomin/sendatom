@@ -21,8 +21,8 @@ import re
 import string
 
 
-commentRe = re.compile('^\s*#')
-blankRe = re.compile('^\s*$')
+commentRe = re.compile('^\\s*#')
+blankRe = re.compile('^\\s*$')
 
 aparse = ArgumentParser()
 aparse.add_argument('-c', '--config',

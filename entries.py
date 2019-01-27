@@ -52,6 +52,7 @@ class Entries:
             tmpFeed = createAtomFeed(self.__feedLink,
                                      self.__feedName,
                                      self.__feedLink,
+                                     self.__config.secret,
                                      self.__entries)
             with open(self.__feedFile, 'w+') as f:
                 f.write(tmpFeed)
@@ -64,10 +65,7 @@ class Entries:
         self.__config = config
         self.__feedName = feedname
         self.__feedFile = f'{config.feeds}/{feedname}.atom'
-        if config.secret != '':
-            self.__feedLink = f'{config.feedUrl}/{feedname}/{config.secret}'
-        else:
-            self.__feedLink = f'{config.feedUrl}/{feedname}'
+        self.__feedLink = f'{config.feedUrl}/feed/{feedname}'
         self.__entryFile = f'{config.entries}/{feedname}.json'
 
         # load entriess
@@ -113,9 +111,9 @@ class Entries:
         self.__writeEntries()
         self.__writeAtomFeed()
 
-    def getContentById(self, contentId):
+    def getItemById(self, item_id):
         for entry in self.__entries:
-            if entry['id'] == contentId:
+            if entry['id'] == item_id:
                 return f'''\
 Title: {entry['title']}
 Date:  {entry['date']}

@@ -13,6 +13,9 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+from os import listdir
+from os.path import splitext
+from json import dumps
 from config import Config
 from entries import Entries
 from bottle import get, post, error, request, response, static_file, run
@@ -38,47 +41,22 @@ def addToFeed(feed, title, content):
     return {'status': 'ok', 'msg': 'success'}
 
 
+def getSecretParam():
+    return request.query.get('secret',
+                             request.forms.get('secret',
+                                               ''))
+
+
 @error(404)
 def error404(error):
     response.content_type = 'application/json'
     return '{"status": "error", "msg": "No such route"}'
 
 
-@get('/add')
-@get('/<secret>/add')
-@get('/<feed>/<secret>/add')
-def addToRootFeedGet(feed='root', secret=''):
-    if secret != config.secret:
-        response.status = 403
-        return {'status': 'error', 'msg': 'wrong secret url'}
-
-    return addToFeed(
-        getFeed(feed),
-        request.query.get('title', 'No title'),
-        request.query.get('content', 'No content'),
-    )
-
-
-@post('/add')
-@post('/<secret>/add')
-@post('/<feed>/<secret>/add')
-def addToRootFeedPost(feed='root', secret=''):
-    if secret != config.secret:
-        response.status = 403
-        return {'status': 'error', 'msg': 'wrong secret url'}
-
-    return addToFeed(
-        getFeed(feed),
-        request.forms.get('title', 'No title'),
-        request.forms.get('content', 'No content'),
-    )
-
-
-@get('/')
-@get('/<secret>')
-@get('/<feed>/<secret>')
-def getRootFeed(feed='root', secret=''):
-    if secret != config.secret:
+@get('/feed')
+@get('/feed/<feed>')
+def getRootFeed(feed='root'):
+    if getSecretParam() != config.secret:
         response.status = 403
         return {'status': 'error', 'msg': 'wrong secret url'}
 
@@ -87,15 +65,14 @@ def getRootFeed(feed='root', secret=''):
     return static_file(f'{feed}.atom', root=config.feeds)
 
 
-@get('/get/content/<contentId>')
-@get('/<secret>/get/<contentId>')
-@get('/<feed>/<secret>/get/<contentId>')
-def getFeedContent(feed='root', secret='', contentId='no-content'):
-    if secret != config.secret:
+@get('/feed/get-item/<item_id>')
+@get('/feed/<feed>/get-item/<item_id>')
+def getFeedContent(feed='root', item_id='no-content'):
+    if getSecretParam() != config.secret:
         response.status = 403
         return {'status': 'error', 'msg': 'wrong secret url'}
 
-    content = getFeed(feed).getContentById(contentId)
+    content = getFeed(feed).getItemById(item_id)
     if content is None:
         response.status = 404
         return {'status': 'error',
@@ -103,6 +80,36 @@ def getFeedContent(feed='root', secret='', contentId='no-content'):
 
     response.content_type = 'text/plain;charset=utf-8'
     return content
+
+
+@get('/feed/list-feeds')
+def listFeeds():
+    feeds = []
+    for feed in listdir(config.feeds):
+        name, ext = splitext(feed)
+        if ext == '.atom':
+            feeds.append(name)
+
+    response.content_type = 'application/json'
+    return dumps(feeds)
+
+
+@get('/feed/add-item')
+@get('/feed/<feed>/add-item')
+@post('/feed/add-item')
+@post('/feed/<feed>/add-item')
+def addToRootFeedPost(feed='root'):
+    if getSecretParam() != config.secret:
+        response.status = 403
+        return {'status': 'error', 'msg': 'wrong secret url'}
+
+    return addToFeed(getFeed(feed),
+                     request.query.get('title',
+                                       request.forms.get('title',
+                                                         'No title')),
+                     request.query.get('content',
+                                       request.forms.get('content',
+                                                         'No content')))
 
 
 if __name__ == '__main__':

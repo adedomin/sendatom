@@ -14,6 +14,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 from xml.sax.saxutils import escape
+from urllib.parse import quote
 from datetime import datetime
 
 
@@ -25,27 +26,27 @@ def simpleTag(tag_name, value):
     return f'<{tag_name}>{escapeAll(value)}</{tag_name}>'
 
 
-def linkTag(href):
-    return f'<link href="{escapeAll(href)}"/>'
+def linkTag(href, secret):
+    return f'<link href="{escapeAll(f"{href}?secret={quote(secret)}")}"/>'
 
 
-def entryEl(link, entry):
+def entryEl(link, secret, entry):
     return ('<entry>' +
             simpleTag('id', entry['id']) +
             simpleTag('title', entry['title']) +
-            linkTag(link + '/get/' + entry['id']) +
+            linkTag(link + '/get-item/' + entry['id'], secret) +
             simpleTag('updated', entry['date']) +
             simpleTag('content', entry['content']) +
             '</entry>')
 
 
-def createAtomFeed(ident, title, link, entries):
+def createAtomFeed(ident, title, link, secret, entries):
     return ('<?xml version="1.0" encoding="UTF-8"?>\n' +
             '<feed xmlns="http://www.w3.org/2005/Atom">' +
             simpleTag('id', ident) +
             simpleTag('title', title) +
-            linkTag(link) +
+            linkTag(link, secret) +
             simpleTag('updated', datetime.utcnow()
                                          .isoformat(timespec='seconds')+'Z') +
-            ''.join([entryEl(link, entry) for entry in entries]) +
+            ''.join([entryEl(link, secret, entry) for entry in entries]) +
             '</feed>')

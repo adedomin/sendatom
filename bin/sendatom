@@ -21,8 +21,8 @@ from argparse import ArgumentParser
 import re
 
 
-commentRe = re.compile('^\s*#')
-blankRe = re.compile('^\s*$')
+commentRe = re.compile('^\\s*#')
+blankRe = re.compile('^\\s*$')
 
 config_files = [
     environ.get(
@@ -106,7 +106,7 @@ except IOError:
     pass
 
 if args.config_file != '':
-    config_files = [ args.config_file ]
+    config_files = [args.config_file]
 
 for file in config_files:
     try:
@@ -117,9 +117,9 @@ for file in config_files:
                     conf, value = line.split('=', maxsplit=1)
                     conf = conf.strip()
                     value = value.strip()
-                    if conf == 'secret':
+                    if conf == 'secret' and secret == '':
                         secret = value
-                    elif conf == 'server':
+                    elif conf == 'server' and server == '':
                         server = value
             break
     except IOError:
@@ -139,24 +139,23 @@ if server == '':
           file=stderr)
     exit(1)
 
-if secret != '':
-    secret = '/' + secret
-server = f'{server}/{args.feed}{secret}/add'
+server = f'{server}/feed/{args.feed}/add-item'
 
 req = request.Request(server,
-                      data=bytes("title=%s&content=%s" %
-                                 (quote(args.title), quote(args.content)),
-                                 'utf-8'),
-                      headers={
-                          'Content-Type': 'application/x-www-form-urlencoded',
-                      },
+                      data=bytes(f'''\
+secret={quote(secret)}&\
+title={quote(args.title)}&\
+content={quote(args.content)}''', 'utf-8'),
+                      headers={'Content-Type':
+                               'application/x-www-form-urlencoded'},
                       method='POST')
+
 
 try:
     with request.urlopen(req) as r:
         pass
-except:
-    print('Error: failed to send',
+except Exception as e:
+    print(f'Error: failed to send - {e}',
           file=stderr)
     print('       check your secret and server are correct in',
           file=stderr)
